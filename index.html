@@ -9,7 +9,6 @@
     <link rel="apple-touch-icon" href="https://drive.google.com/uc?export=view&id=18utCRt0LXOtXjkjMmLeBDeGGb_px9xPW">
     
     <style>
-        /* ... (CSS 스타일은 이전과 동일) ... */
         body { 
             font-family: 'Malgun Gothic', 'Arial', sans-serif; 
             display: flex; 
@@ -38,6 +37,38 @@
             font-size: 1.1em;
             color: #555;
             text-align: center;
+        }
+        
+        /* --- 탭 관련 CSS 추가 --- */
+        .tabs-container {
+            width: 90%;
+            max-width: 400px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 0 5px;
+        }
+        .tab-button {
+            flex-grow: 1;
+            padding: 15px 10px;
+            margin: 0 2px;
+            border: none;
+            border-bottom: 3px solid transparent;
+            background-color: #f9f9f9;
+            color: #555;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab-button:hover {
+            background-color: #eee;
+        }
+        .tab-button.active {
+            background-color: #ffffff;
+            border-bottom: 3px solid #FEE500;
+            color: #1a1a1a;
         }
         
         .section-container {
@@ -221,19 +252,28 @@
             font-size: 1.1em;
             font-weight: bold;
         }
+        /* 기존 .tab-content 스타일 수정: 기본적으로 숨김 처리 */
         .tab-content {
-            display: flex;
+            display: none; /* 기본 숨김 */
             width: 100%;
             align-items: center;
             flex-direction: column;
+        }
+        .tab-content.active {
+            display: flex; /* 활성화 시 표시 */
         }
     </style>
 </head>
 <body>
 
     <h1 class="app-title">💸 송금 및 커피 내기 관리 웹 앱 ☕</h1>
-
-    <div id="calcContent" class="tab-content">
+    
+    <div class="tabs-container">
+        <button class="tab-button active" onclick="openTab('calcContent', this)">계산/송금</button>
+        <button class="tab-button" onclick="openTab('recordContent', this)">기록하기</button>
+        <button class="tab-button" onclick="openTab('statsContent', this)">통계</button>
+    </div>
+    <div id="calcContent" class="tab-content active"> 
         <p class="instruction">더치페이 금액을 확인하고, 아래에서 송금할 사람을 선택하세요.</p>
 
         <div class="section-container calculator-section">
@@ -342,9 +382,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-        // --- 1. Firebase 설정 및 초기화 ---
-        
-        // ⚠️ 고객님의 coffee-bf111 프로젝트 설정 값을 직접 사용
+        // --- 1. Firebase 설정 및 초기화 (고객님의 값) ---
         const firebaseConfig = {
             apiKey: "AIzaSyAf369AzoQLAHD8_Bcck_j3fB2fgQUnglg",
             authDomain: "coffee-bf111.firebaseapp.com",
@@ -358,10 +396,10 @@
         
         // Firebase 앱 초기화 및 DB 인스턴스 설정
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app); // V9 방식의 DB 초기화
-        const recordsRef = ref(db, 'coffeeRecords'); // 데이터 저장 경로 참조
+        const db = getDatabase(app); 
+        const recordsRef = ref(db, 'coffeeRecords'); 
 
-        let recordsData = []; // Firebase에서 가져온 라이브 데이터를 담을 전역 배열 (모듈 내부에 정의)
+        let recordsData = []; // Firebase에서 가져온 라이브 데이터를 담을 전역 배열
         
         // --- 데이터 정의 영역 ---
         const kakaopayUrls = {
@@ -375,30 +413,56 @@
         };
         const memberNames = ['구보람', '김혜빈', '박서연', '박성희', '정민경', '정지희', '황민구'];
 
-        // --- 전역 함수 정의 (window 객체에 바인딩하여 HTML에서 접근 가능하게 함) ---
-        
+        // --- 전역 함수 정의 (window 객체에 바인딩) ---
         window.getRecords = function() {
             return recordsData;
         }
 
+        // ⭐ 탭 전환 함수 ⭐
+        window.openTab = function(tabName, elmnt) {
+            // 1. 모든 .tab-content 숨기기
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+
+            // 2. 모든 .tab-button의 active 클래스 제거
+            const tabButtons = document.getElementsByClassName("tab-button");
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+
+            // 3. 현재 탭 콘텐츠 및 버튼 활성화
+            const currentContent = document.getElementById(tabName);
+            if (currentContent) {
+                currentContent.classList.add("active");
+            }
+            elmnt.classList.add("active");
+            
+            // 4. 통계 탭이 열릴 때 통계를 다시 렌더링
+            if (tabName === 'statsContent') {
+                renderStats(); 
+            }
+        }
+        
         // --- Firebase 데이터 리스너 (핵심) ---
         function listenForRecords() {
-            // onValue는 실시간으로 데이터 변경을 감지
             onValue(recordsRef, (snapshot) => {
                 recordsData = [];
                 const data = snapshot.val();
                 
                 if (data) {
-                    // Firebase에서 가져온 객체 데이터를 배열로 변환
                     recordsData = Object.keys(data).map(key => ({
                         ...data[key],
-                        firebaseId: key // Firebase에서 생성한 고유 ID (삭제에 사용)
-                    })).sort((a, b) => b.timestamp - a.timestamp); // 최신순으로 정렬
+                        firebaseId: key 
+                    })).sort((a, b) => b.timestamp - a.timestamp); 
                 }
                 
-                // 데이터가 업데이트될 때마다 목록과 통계를 다시 렌더링
                 renderRecordsList(); 
-                renderStats(); 
+                // 통계 탭이 열려있는 경우에만 렌더링
+                if(document.getElementById('statsContent').classList.contains('active')) {
+                    renderStats();
+                }
 
             }, (error) => {
                 console.error("Firebase 데이터 로드 오류:", error);
@@ -406,7 +470,6 @@
             });
         }
 
-        // --- 초기화 함수 ---
         function initializeRecordBuyer() {
             const container = document.getElementById('recordBuyerCheckboxes');
             if (!container) return; 
@@ -445,7 +508,7 @@
                 
                 initializeRecordBuyer();
                 
-                listenForRecords(); // ⭐ 클라우드 데이터 로딩 및 리스너 시작
+                listenForRecords(); // 클라우드 데이터 로딩 및 리스너 시작
 
             } catch (error) {
                 console.error("앱 초기화 중 오류 발생:", error);
@@ -535,7 +598,7 @@
             };
 
             // Firebase에 저장
-            push(recordsRef, newRecord) // V9 방식의 push 사용
+            push(recordsRef, newRecord) 
                 .then(() => {
                     alert(`✅ 기록이 클라우드(Firebase)에 저장되었습니다! 모든 기기에서 동기화됩니다.`);
                     // 입력 필드 초기화
@@ -555,9 +618,8 @@
                 return;
             }
 
-            // Firebase의 고유 ID를 사용하여 해당 노드 삭제
             const recordToDeleteRef = ref(db, 'coffeeRecords/' + firebaseId);
-            remove(recordToDeleteRef) // V9 방식의 remove 사용
+            remove(recordToDeleteRef) 
                 .then(() => {
                     alert('✅ 기록이 클라우드에서 삭제되었습니다.');
                 })
@@ -600,7 +662,7 @@
             });
         }
 
-        // --- 통계 기능 (이전과 동일) ---
+        // --- 통계 기능 ---
         function getBuyerCounts(records) {
             const buyerCounts = memberNames.reduce((acc, name) => {
                 acc[name] = 0; 
