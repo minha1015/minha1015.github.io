@@ -38,8 +38,30 @@
             color: #555;
             text-align: center;
         }
-        /* 탭 버튼 스타일 제거 */
-        
+        .tab-buttons {
+            display: flex;
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .tab-buttons button {
+            flex-grow: 1;
+            padding: 15px 10px;
+            border: none;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            background-color: #e0e0e0;
+            color: #555;
+        }
+        .tab-buttons button.active {
+            background-color: #333;
+            color: white;
+        }
         .section-container {
             width: 90%;
             max-width: 400px;
@@ -47,7 +69,7 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 30px; /* 섹션 간 간격 유지 */
+            margin-bottom: 30px;
         }
         .person-button {
             background-color: #FEE500; 
@@ -221,12 +243,14 @@
             font-size: 1.1em;
             font-weight: bold;
         }
-        /* 단일 페이지 모드: 모든 컨텐츠가 기본적으로 보임 */
         .tab-content {
-            display: flex;
+            display: none;
             width: 100%;
             align-items: center;
             flex-direction: column;
+        }
+        .tab-content.active {
+            display: flex;
         }
     </style>
 </head>
@@ -234,7 +258,13 @@
 
     <h1 class="app-title">💸 송금 및 커피 내기 관리 웹 앱 ☕</h1>
 
-    <div id="calcContent" class="tab-content">
+    <div class="tab-buttons">
+        <button id="tabCalcButton" onclick="changeTab('calc')">송금/계산기</button>
+        <button id="tabRecordButton" onclick="changeTab('record')">내기 기록</button>
+        <button id="tabStatsButton" onclick="changeTab('stats')">통계 보기</button>
+    </div>
+
+    <div id="calcContent" class="tab-content active">
         <p class="instruction">더치페이 금액을 확인하고, 아래에서 송금할 사람을 선택하세요.</p>
 
         <div class="section-container calculator-section">
@@ -264,7 +294,7 @@
             <button class="person-button" onclick="goToKakaopay('황민구')">황민구</button>
         </div>
     </div>
-    
+
     <div id="recordContent" class="tab-content">
         <div class="section-container record-section">
             <h3>✍️ 내기 기록하기</h3>
@@ -337,7 +367,6 @@
         </div>
     </div>
 
-
     <script>
         // --- 데이터 정의 영역 ---
         const kakaopayUrls = {
@@ -361,9 +390,31 @@
             localStorage.setItem('coffeeGameRecords', JSON.stringify(records));
         }
 
-        // --- 초기화 함수 (탭 관련 제거) ---
-        // changeTab 함수는 더 이상 필요하지 않습니다.
-        
+        // --- 초기화 및 탭 제어 기능 ---
+        function changeTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-buttons button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // 탭 버튼 활성화
+            const tabButton = document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1) + 'Button');
+            const tabContent = document.getElementById(tabId + 'Content');
+            
+            if (tabButton) tabButton.classList.add('active');
+            if (tabContent) tabContent.classList.add('active');
+
+            // 탭에 따라 필요한 함수 실행
+            if (tabId === 'stats') {
+                renderStats();
+            }
+            if (tabId === 'record') {
+                renderRecordsList();
+            }
+        }
+
         function initializeRecordBuyer() {
             const container = document.getElementById('recordBuyerCheckboxes');
             if (!container) return; // 컨테이너가 없으면 함수 종료 (오류 방지)
@@ -401,11 +452,7 @@
                 }
                 
                 initializeRecordBuyer();
-                
-                // 단일 페이지에서는 초기화 시 기록 목록과 통계를 바로 렌더링합니다.
-                renderRecordsList(); 
-                renderStats(); 
-
+                changeTab('calc'); 
             } catch (error) {
                 console.error("앱 초기화 중 오류 발생:", error);
                 // 오류 발생 시에도 앱이 완전히 멈추지 않도록 메시지만 출력
@@ -521,13 +568,15 @@
             saveRecords(records);
 
             renderRecordsList();
-            renderStats(); 
+            if (document.getElementById('statsContent').classList.contains('active')) {
+                renderStats();
+            }
         }
 
         // --- 기록 목록 렌더링 (로컬 저장소 기능) ---
         function renderRecordsList() {
             const recordsListElement = document.getElementById('recordsList');
-            if (!recordsListElement) return; 
+            if (!recordsListElement) return; // 요소 없으면 종료
 
             recordsListElement.innerHTML = '';
             
