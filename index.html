@@ -9,6 +9,7 @@
     <link rel="apple-touch-icon" href="https://drive.google.com/uc?export=view&id=18utCRt0LXOtXjkjMmLeBDeGGb_px9xPW">
     
     <style>
+        /* ... (CSS 스타일은 이전과 동일) ... */
         body { 
             font-family: 'Malgun Gothic', 'Arial', sans-serif; 
             display: flex; 
@@ -38,30 +39,7 @@
             color: #555;
             text-align: center;
         }
-        .tab-buttons {
-            display: flex;
-            width: 90%;
-            max-width: 400px;
-            margin-bottom: 20px;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        .tab-buttons button {
-            flex-grow: 1;
-            padding: 15px 10px;
-            border: none;
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s, color 0.3s;
-            background-color: #e0e0e0;
-            color: #555;
-        }
-        .tab-buttons button.active {
-            background-color: #333;
-            color: white;
-        }
+        
         .section-container {
             width: 90%;
             max-width: 400px;
@@ -69,7 +47,7 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 30px;
+            margin-bottom: 30px; 
         }
         .person-button {
             background-color: #FEE500; 
@@ -244,13 +222,10 @@
             font-weight: bold;
         }
         .tab-content {
-            display: none;
+            display: flex;
             width: 100%;
             align-items: center;
             flex-direction: column;
-        }
-        .tab-content.active {
-            display: flex;
         }
     </style>
 </head>
@@ -258,13 +233,7 @@
 
     <h1 class="app-title">💸 송금 및 커피 내기 관리 웹 앱 ☕</h1>
 
-    <div class="tab-buttons">
-        <button id="tabCalcButton" onclick="changeTab('calc')">송금/계산기</button>
-        <button id="tabRecordButton" onclick="changeTab('record')">내기 기록</button>
-        <button id="tabStatsButton" onclick="changeTab('stats')">통계 보기</button>
-    </div>
-
-    <div id="calcContent" class="tab-content active">
+    <div id="calcContent" class="tab-content">
         <p class="instruction">더치페이 금액을 확인하고, 아래에서 송금할 사람을 선택하세요.</p>
 
         <div class="section-container calculator-section">
@@ -294,7 +263,7 @@
             <button class="person-button" onclick="goToKakaopay('황민구')">황민구</button>
         </div>
     </div>
-
+    
     <div id="recordContent" class="tab-content">
         <div class="section-container record-section">
             <h3>✍️ 내기 기록하기</h3>
@@ -318,7 +287,7 @@
                 <label for="recordGame">4. 무슨 게임?</label>
                 <input type="text" id="recordGame" placeholder="예: 복불복 뽑기, 사다리타기">
             </div>
-            <button id="saveRecordButton" onclick="saveRecord()">기록 저장 (로컬)</button>
+            <button id="saveRecordButton" onclick="saveRecord()">기록 저장 (클라우드/Firebase)</button>
         </div>
 
         <div class="section-container record-list-section">
@@ -365,9 +334,35 @@
 
             <p style="font-size: 0.9em; color: #777;">**막대 그래프는 각 카테고리 내에서 횟수가 가장 많은 사람을 100% 기준으로 표시합니다.</p>
         </div>
+        
     </div>
 
-    <script>
+    <script type="module">
+        // Firebase 모듈 임포트
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+        // --- 1. Firebase 설정 및 초기화 ---
+        
+        // ⚠️ 고객님의 coffee-bf111 프로젝트 설정 값을 직접 사용
+        const firebaseConfig = {
+            apiKey: "AIzaSyAf369AzoQLAHD8_Bcck_j3fB2fgQUnglg",
+            authDomain: "coffee-bf111.firebaseapp.com",
+            databaseURL: "https://coffee-bf111-default-rtdb.firebaseio.com",
+            projectId: "coffee-bf111",
+            storageBucket: "coffee-bf111.firebasestorage.app",
+            messagingSenderId: "1049977125059",
+            appId: "1:1049977125059:web:1fb0d5eeb7bbdac2dc4a76",
+            measurementId: "G-ZG06GF8VR7"
+        };
+        
+        // Firebase 앱 초기화 및 DB 인스턴스 설정
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app); // V9 방식의 DB 초기화
+        const recordsRef = ref(db, 'coffeeRecords'); // 데이터 저장 경로 참조
+
+        let recordsData = []; // Firebase에서 가져온 라이브 데이터를 담을 전역 배열 (모듈 내부에 정의)
+        
         // --- 데이터 정의 영역 ---
         const kakaopayUrls = {
             '황민구': 'https://qr.kakaopay.com/Ej9Ik0WyG',
@@ -380,44 +375,41 @@
         };
         const memberNames = ['구보람', '김혜빈', '박서연', '박성희', '정민경', '정지희', '황민구'];
 
-        // --- 로컬 저장소 기능 ---
-        function getRecords() {
-            const records = localStorage.getItem('coffeeGameRecords');
-            return records ? JSON.parse(records) : [];
+        // --- 전역 함수 정의 (window 객체에 바인딩하여 HTML에서 접근 가능하게 함) ---
+        
+        window.getRecords = function() {
+            return recordsData;
         }
 
-        function saveRecords(records) {
-            localStorage.setItem('coffeeGameRecords', JSON.stringify(records));
-        }
+        // --- Firebase 데이터 리스너 (핵심) ---
+        function listenForRecords() {
+            // onValue는 실시간으로 데이터 변경을 감지
+            onValue(recordsRef, (snapshot) => {
+                recordsData = [];
+                const data = snapshot.val();
+                
+                if (data) {
+                    // Firebase에서 가져온 객체 데이터를 배열로 변환
+                    recordsData = Object.keys(data).map(key => ({
+                        ...data[key],
+                        firebaseId: key // Firebase에서 생성한 고유 ID (삭제에 사용)
+                    })).sort((a, b) => b.timestamp - a.timestamp); // 최신순으로 정렬
+                }
+                
+                // 데이터가 업데이트될 때마다 목록과 통계를 다시 렌더링
+                renderRecordsList(); 
+                renderStats(); 
 
-        // --- 초기화 및 탭 제어 기능 ---
-        function changeTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
+            }, (error) => {
+                console.error("Firebase 데이터 로드 오류:", error);
+                alert("⚠️ 기록 데이터를 불러오는 데 실패했습니다. 콘솔을 확인하십시오.");
             });
-            document.querySelectorAll('.tab-buttons button').forEach(button => {
-                button.classList.remove('active');
-            });
-
-            // 탭 버튼 활성화
-            const tabButton = document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1) + 'Button');
-            const tabContent = document.getElementById(tabId + 'Content');
-            
-            if (tabButton) tabButton.classList.add('active');
-            if (tabContent) tabContent.classList.add('active');
-
-            // 탭에 따라 필요한 함수 실행
-            if (tabId === 'stats') {
-                renderStats();
-            }
-            if (tabId === 'record') {
-                renderRecordsList();
-            }
         }
 
+        // --- 초기화 함수 ---
         function initializeRecordBuyer() {
             const container = document.getElementById('recordBuyerCheckboxes');
-            if (!container) return; // 컨테이너가 없으면 함수 종료 (오류 방지)
+            if (!container) return; 
             
             const sortedMembers = [...memberNames].sort(); 
 
@@ -442,7 +434,7 @@
             });
         }
 
-        // ⭐ HTML 문서 로드 후 실행 (안정성 강화) ⭐
+        // HTML 문서 로드 후 실행 
         document.addEventListener('DOMContentLoaded', function() {
             try {
                 const recordDateInput = document.getElementById('recordDate');
@@ -452,15 +444,17 @@
                 }
                 
                 initializeRecordBuyer();
-                changeTab('calc'); 
+                
+                listenForRecords(); // ⭐ 클라우드 데이터 로딩 및 리스너 시작
+
             } catch (error) {
                 console.error("앱 초기화 중 오류 발생:", error);
-                // 오류 발생 시에도 앱이 완전히 멈추지 않도록 메시지만 출력
+                alert("⚠️ 앱 초기화 오류. 콘솔 로그를 확인하십시오.");
             }
         });
 
         // --- 송금 및 계산기 기능 ---
-        function goToKakaopay(personName) {
+        window.goToKakaopay = function(personName) {
             const url = kakaopayUrls[personName];
             if (url) {
                 window.location.href = url;
@@ -469,7 +463,7 @@
             }
         }
 
-        function calculateSplit() {
+        window.calculateSplit = function() {
             const totalAmountInput = document.getElementById('totalAmount');
             const numPeopleInput = document.getElementById('numPeople');
             const resultDiv = document.getElementById('calculationResult');
@@ -519,8 +513,8 @@
             resultDiv.innerHTML = resultText + roundingNote;
         }
 
-        // --- 기록 저장 (로컬 전용) ---
-        function saveRecord() {
+        // --- 기록 저장 기능 (V9 push 사용) ---
+        window.saveRecord = function() {
             const type = document.getElementById('recordType').value;
             const date = document.getElementById('recordDate').value;
             const checkedBuyers = Array.from(document.querySelectorAll('input[name="recordBuyer"]:checked'))
@@ -533,54 +527,54 @@
             }
 
             const newRecord = {
-                id: Date.now(), 
                 type: type,
                 date: date,
                 buyer: checkedBuyers, 
-                game: game
+                game: game,
+                timestamp: Date.now() 
             };
 
-            // 로컬 저장소에 저장
-            const records = getRecords();
-            records.push(newRecord);
-            saveRecords(records);
-            
-            alert(`✅ 기록이 로컬 저장소에 저장되었습니다!`);
-
-            // 입력 필드 초기화
-            document.getElementById('recordGame').value = ''; 
-            document.querySelectorAll('input[name="recordBuyer"]:checked').forEach(cb => cb.checked = false);
-            document.getElementById('recordType').value = '번외';
-
-            // 기록 목록 및 통계 업데이트
-            renderRecordsList();
-            renderStats();
+            // Firebase에 저장
+            push(recordsRef, newRecord) // V9 방식의 push 사용
+                .then(() => {
+                    alert(`✅ 기록이 클라우드(Firebase)에 저장되었습니다! 모든 기기에서 동기화됩니다.`);
+                    // 입력 필드 초기화
+                    document.getElementById('recordGame').value = ''; 
+                    document.querySelectorAll('input[name="recordBuyer"]:checked').forEach(cb => cb.checked = false);
+                    document.getElementById('recordType').value = '번외';
+                })
+                .catch(error => {
+                    alert(`⚠️ 기록 저장 실패: ${error.message}`);
+                    console.error("Firebase 저장 오류:", error);
+                });
         }
 
-        // --- 기록 삭제 (로컬 저장소 기능) ---
-        function deleteRecord(id) {
-            if (!confirm('정말로 이 기록을 삭제하시겠습니까? (로컬 데이터만 삭제됩니다.)')) {
+        // --- 기록 삭제 기능 (V9 remove 사용) ---
+        window.deleteRecord = function(firebaseId) {
+            if (!confirm('정말로 이 기록을 삭제하시겠습니까? (클라우드 데이터에서 영구 삭제되며, 모든 기기에 반영됩니다.)')) {
                 return;
             }
 
-            let records = getRecords();
-            records = records.filter(record => record.id !== id);
-            saveRecords(records);
-
-            renderRecordsList();
-            if (document.getElementById('statsContent').classList.contains('active')) {
-                renderStats();
-            }
+            // Firebase의 고유 ID를 사용하여 해당 노드 삭제
+            const recordToDeleteRef = ref(db, 'coffeeRecords/' + firebaseId);
+            remove(recordToDeleteRef) // V9 방식의 remove 사용
+                .then(() => {
+                    alert('✅ 기록이 클라우드에서 삭제되었습니다.');
+                })
+                .catch(error => {
+                    alert(`⚠️ 삭제 실패: ${error.message}`);
+                    console.error("Firebase 삭제 오류:", error);
+                });
         }
 
-        // --- 기록 목록 렌더링 (로컬 저장소 기능) ---
+        // --- 기록 목록 렌더링 ---
         function renderRecordsList() {
             const recordsListElement = document.getElementById('recordsList');
-            if (!recordsListElement) return; // 요소 없으면 종료
+            if (!recordsListElement) return; 
 
             recordsListElement.innerHTML = '';
             
-            const records = getRecords().reverse(); 
+            const records = getRecords(); 
 
             if (records.length === 0) {
                 recordsListElement.innerHTML = '<li>아직 기록된 내역이 없습니다.</li>';
@@ -600,13 +594,13 @@
                         [<strong>${record.type}</strong>] ${dateDisplay} - **${buyerDisplay}** 당첨! <br>
                         <small>${record.game}</small>
                     </div>
-                    <button class="delete-button" onclick="deleteRecord(${record.id})">삭제</button>
+                    <button class="delete-button" onclick="deleteRecord('${record.firebaseId}')">삭제</button>
                 `;
                 recordsListElement.appendChild(listItem);
             });
         }
 
-        // --- 통계 기능 (로컬 저장소 기능) ---
+        // --- 통계 기능 (이전과 동일) ---
         function getBuyerCounts(records) {
             const buyerCounts = memberNames.reduce((acc, name) => {
                 acc[name] = 0; 
@@ -632,7 +626,6 @@
             if (totalRecordsCountElement) totalRecordsCountElement.textContent = totalCount;
             
             if (totalCount === 0) {
-                // 통계 컨테이너 초기화
                 const clearStats = (id) => {
                     const el = document.getElementById(id);
                     if (el) el.innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
@@ -647,7 +640,6 @@
                 return;
             }
             
-            // --- 최근 정규 게임 구매자 찾기 ---
             const regularRecords = allRecords.filter(r => r.type === '정규').sort((a, b) => new Date(b.date) - new Date(a.date));
             const latestRegularBuyerDiv = document.getElementById('latestRegularBuyer');
             
@@ -661,20 +653,15 @@
                 }
             }
 
-
-            // 1. 게임 구분 통계 (정규/번외) - 막대 차트
             const typeCounts = allRecords.reduce((acc, record) => {
                 acc[record.type] = (acc[record.type] || 0) + 1;
                 return acc;
             }, {});
             drawBarChart('typeStats', typeCounts, totalCount, 'regular', {'정규': 'regular', '번외': 'extra'});
 
-
-            // 2. 커피 구매자 통계 - 전체 기록 - 막대 차트
             const buyerCountsAll = getBuyerCounts(allRecords);
             drawBarChart('buyerStatsAll', buyerCountsAll, totalCount, 'buyer-all');
             
-            // 3. 커피 구매자 통계 - 정규 게임 한정 - 막대 차트
             const buyerCountsRegular = getBuyerCounts(regularRecords);
             if (regularRecords.length > 0) {
                  drawBarChart('buyerStatsRegular', buyerCountsRegular, regularRecords.length, 'buyer-regular');
@@ -683,7 +670,6 @@
                  if (buyerStatsRegularEl) buyerStatsRegularEl.innerHTML = '<p>정규 게임 기록이 없어 통계를 표시할 수 없습니다.</p>';
             }
 
-            // 4. 커피 구매자 통계 - 번외 게임 한정 - 막대 차트
             const extraRecords = allRecords.filter(r => r.type === '번외');
             const buyerCountsExtra = getBuyerCounts(extraRecords);
             if (extraRecords.length > 0) {
@@ -694,10 +680,9 @@
             }
         }
 
-        // 막대 그래프를 그리는 범용 함수
         function drawBarChart(elementId, dataCounts, totalCount, baseClass, colorMap = {}) {
             const container = document.getElementById(elementId);
-            if (!container) return; // 요소 없으면 종료
+            if (!container) return; 
             
             container.innerHTML = ''; 
 
@@ -726,6 +711,7 @@
                 container.appendChild(chartItem);
             });
         }
+        
     </script>
 </body>
 </html>
