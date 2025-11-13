@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>카카오페이 송금 바로가기</title>
+    <title>카카오페이 송금 및 커피 내기 관리</title>
+    
+    <link rel="icon" href="https://drive.google.com/uc?export=view&id=18utCRt0LXOtXjkjMmLeBDeGGb_px9xPW">
+    <link rel="apple-touch-icon" href="https://drive.google.com/uc?export=view&id=18utCRt0LXOtXjkjMmLeBDeGGb_px9xPW">
+    
     <style>
         body { 
             font-family: 'Malgun Gothic', 'Arial', sans-serif; 
@@ -16,8 +20,6 @@
             padding-bottom: 40px; 
             background-color: #f0f0f0; 
         }
-
-        /* 제목 스타일 */
         .app-title {
             font-size: 2.2em;
             color: #1a1a1a;
@@ -30,17 +32,47 @@
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
             letter-spacing: -0.5px;
         }
-
         .instruction {
             margin-bottom: 30px;
             font-size: 1.1em;
             color: #555;
             text-align: center;
         }
-        
-        /* 송금 버튼 공통 스타일 */
+        .tab-buttons {
+            display: flex;
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .tab-buttons button {
+            flex-grow: 1;
+            padding: 15px 10px;
+            border: none;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            background-color: #e0e0e0;
+            color: #555;
+        }
+        .tab-buttons button.active {
+            background-color: #333;
+            color: white;
+        }
+        .section-container {
+            width: 90%;
+            max-width: 400px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
         .person-button {
-            background-color: #FEE500; /* 카카오톡 옐로우 */
+            background-color: #FEE500; 
             color: #191919;
             border: none;
             padding: 20px 40px;
@@ -51,8 +83,7 @@
             font-size: 18px;
             cursor: pointer;
             border-radius: 12px;
-            width: 90%;
-            max-width: 350px;
+            width: 100%;
             font-weight: bold;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: background-color 0.3s, transform 0.1s;
@@ -61,23 +92,13 @@
             background-color: #ffd400;
             transform: translateY(-2px);
         }
-        
-        /* 계산기 섹션 스타일 */
-        .calculator-section {
-            margin-bottom: 50px; 
-            padding: 30px;
-            background-color: #ffffff;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            width: 90%;
-            max-width: 400px;
-        }
-        .calculator-section h3 {
+        .calculator-section h3, .record-section h3, .stats-section h3 {
             margin-top: 0;
             color: #333;
             border-bottom: 2px solid #eee;
             padding-bottom: 10px;
             font-size: 1.3em;
+            margin-bottom: 20px;
         }
         .input-group {
             margin-bottom: 20px;
@@ -88,16 +109,33 @@
             font-weight: bold;
             color: #444;
         }
-        .input-group input {
+        .input-group input, .input-group select {
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
             border: 1px solid #ccc;
             border-radius: 8px;
             font-size: 16px;
-            text-align: right;
         }
-        #calculateButton {
+        #recordBuyerCheckboxes {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto; 
+        }
+        #recordBuyerCheckboxes label {
+            font-weight: normal;
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        #recordBuyerCheckboxes input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        #calculateButton, #saveRecordButton, .delete-button {
             background-color: #555; 
             color: white;
             padding: 12px;
@@ -107,8 +145,9 @@
             font-weight: bold;
             cursor: pointer;
             transition: background-color 0.3s;
+            margin-top: 10px;
         }
-        #calculateButton:hover {
+        #calculateButton:hover, #saveRecordButton:hover, .delete-button:hover {
             background-color: #333;
         }
         #calculationResult {
@@ -133,44 +172,203 @@
              color: #777;
              margin-top: 5px;
         }
+        #recordsList {
+            list-style: none;
+            padding: 0;
+        }
+        #recordsList li {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95em;
+        }
+        #recordsList li strong {
+            color: #333;
+        }
+        .delete-button {
+            width: 60px;
+            padding: 8px;
+            margin: 0;
+            background-color: #e74c3c;
+            font-size: 0.8em;
+        }
+        .delete-button:hover {
+            background-color: #c0392b;
+        }
+        .stats-chart {
+            margin-bottom: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .stats-chart h4 {
+            margin-top: 0;
+            font-size: 1.1em;
+            color: #444;
+            margin-bottom: 15px;
+        }
+        .chart-bar-container {
+            background-color: #eee;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .chart-bar {
+            height: 25px;
+            line-height: 25px;
+            color: white;
+            text-align: right;
+            padding-right: 5px;
+            font-size: 0.9em;
+            font-weight: bold;
+            white-space: nowrap;
+            transition: width 0.5s ease-out;
+        }
+        .chart-bar.regular { background-color: #2ecc71; } 
+        .chart-bar.extra { background-color: #f1c40f; } 
+        .chart-bar.buyer-all { background-color: #3498db; } 
+        .chart-bar.buyer-regular { background-color: #1abc9c; } 
+        .chart-bar.buyer-extra { background-color: #f39c12; } 
+        #latestRegularBuyer {
+            padding: 15px;
+            background-color: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+            width: 100%;
+            align-items: center;
+            flex-direction: column;
+        }
+        .tab-content.active {
+            display: flex;
+        }
     </style>
 </head>
 <body>
 
-    <h1 class="app-title">카카오페이로 송금하기</h1>
+    <h1 class="app-title">💸 송금 및 커피 내기 관리 웹 앱 ☕</h1>
 
-    <p class="instruction">더치페이 금액을 확인하고, 아래에서 송금할 사람을 선택하세요.</p>
+    <div class="tab-buttons">
+        <button id="tabCalcButton" onclick="changeTab('calc')">송금/계산기</button>
+        <button id="tabRecordButton" onclick="changeTab('record')">내기 기록</button>
+        <button id="tabStatsButton" onclick="changeTab('stats')">통계 보기</button>
+    </div>
 
-    <div class="calculator-section">
-        <h3>💸 더치페이 계산기 (100원 단위 올림 기준)</h3>
-        
-        <div class="input-group">
-            <label for="totalAmount">총 금액 (원)</label>
-            <input type="number" id="totalAmount" placeholder="총 금액을 입력하세요 (숫자만)">
+    <div id="calcContent" class="tab-content active">
+        <p class="instruction">더치페이 금액을 확인하고, 아래에서 송금할 사람을 선택하세요.</p>
+
+        <div class="section-container calculator-section">
+            <h3>💸 더치페이 계산기 (100원 단위 올림 기준)</h3>
+            <div class="input-group">
+                <label for="totalAmount">총 금액 (원)</label>
+                <input type="number" id="totalAmount" placeholder="총 금액을 입력하세요 (숫자만)">
+            </div>
+            <div class="input-group">
+                <label for="numPeople">나눠야 할 인원 (명)</label>
+                <input type="number" id="numPeople" placeholder="나눠야 할 인원수를 입력하세요 (숫자만)">
+            </div>
+            <button id="calculateButton" onclick="calculateSplit()">계산하기</button>
+            <div id="calculationResult">
+                결과를 보려면 '계산하기' 버튼을 눌러주세요.
+            </div>
         </div>
-        
-        <div class="input-group">
-            <label for="numPeople">나눠야 할 인원 (명)</label>
-            <input type="number" id="numPeople" placeholder="나눠야 할 인원수를 입력하세요 (숫자만)">
-        </div>
-        
-        <button id="calculateButton" onclick="calculateSplit()">계산하기</button>
-        
-        <div id="calculationResult">
-            결과를 보려면 '계산하기' 버튼을 눌러주세요.
+
+        <div class="section-container">
+            <h3>💳 카카오페이 송금 바로가기</h3>
+            <button class="person-button" onclick="goToKakaopay('구보람')">구보람</button>
+            <button class="person-button" onclick="goToKakaopay('김혜빈')">김혜빈</button>
+            <button class="person-button" onclick="goToKakaopay('박서연')">박서연</button>
+            <button class="person-button" onclick="goToKakaopay('박성희')">박성희</button>
+            <button class="person-button" onclick="goToKakaopay('정민경')">정민경</button>
+            <button class="person-button" onclick="goToKakaopay('정지희')">정지희</button>
+            <button class="person-button" onclick="goToKakaopay('황민구')">황민구</button>
         </div>
     </div>
 
-    <button class="person-button" onclick="goToKakaopay('구보람')">구보람</button>
-    <button class="person-button" onclick="goToKakaopay('김혜빈')">김혜빈</button>
-    <button class="person-button" onclick="goToKakaopay('박서연')">박서연</button>
-    <button class="person-button" onclick="goToKakaopay('박성희')">박성희</button>
-    <button class="person-button" onclick="goToKakaopay('정민경')">정민경</button>
-    <button class="person-button" onclick="goToKakaopay('정지희')">정지희</button>
-    <button class="person-button" onclick="goToKakaopay('황민구')">황민구</button>
+    <div id="recordContent" class="tab-content">
+        <div class="section-container record-section">
+            <h3>✍️ 내기 기록하기</h3>
+            <div class="input-group">
+                <label for="recordType">1. 게임 구분</label>
+                <select id="recordType">
+                    <option value="정규">정규 (모두 함께한 게임)</option>
+                    <option value="번외" selected>번외 (일부만 한 게임)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="recordDate">2. 날짜</label>
+                <input type="date" id="recordDate" value="">
+            </div>
+            <div class="input-group">
+                <label>3. 커피 구매자 (중복 선택 가능)</label>
+                <div id="recordBuyerCheckboxes" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    </div>
+            </div>
+            <div class="input-group">
+                <label for="recordGame">4. 무슨 게임?</label>
+                <input type="text" id="recordGame" placeholder="예: 복불복 뽑기, 사다리타기">
+            </div>
+            <button id="saveRecordButton" onclick="saveRecord()">기록 저장 (로컬)</button>
+        </div>
+
+        <div class="section-container record-list-section">
+            <h3>🗑️ 기록 목록 및 삭제</h3>
+            <ul id="recordsList">
+                </ul>
+        </div>
+    </div>
+
+    <div id="statsContent" class="tab-content">
+        <div class="section-container stats-section">
+            <h3>📊 통계</h3>
+
+            <div id="latestRegularBuyer">
+                </div>
+
+            <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 20px; color: #34495e;">
+                총 기록 횟수: <span id="totalRecordsCount">0</span>회
+            </div>
+
+            <div class="stats-chart">
+                <h4>1. 게임 구분 통계 (정규/번외 비율)</h4>
+                <div id="typeStats">
+                </div>
+            </div>
+
+            <div class="stats-chart">
+                <h4>2. 커피 구매자 통계 (전체 기록)</h4>
+                <div id="buyerStatsAll">
+                </div>
+            </div>
+            
+            <div class="stats-chart">
+                <h4>3. 커피 구매자 통계 (정규 게임 한정)</h4>
+                <div id="buyerStatsRegular">
+                </div>
+            </div>
+            
+            <div class="stats-chart">
+                <h4>4. 커피 구매자 통계 (번외 게임 한정)</h4>
+                <div id="buyerStatsExtra">
+                </div>
+            </div>
+
+            <p style="font-size: 0.9em; color: #777;">**막대 그래프는 각 카테고리 내에서 횟수가 가장 많은 사람을 100% 기준으로 표시합니다.</p>
+        </div>
+    </div>
 
     <script>
-        // 최종 송금 URL 데이터 (총 7명)
+        // --- 데이터 정의 영역 ---
         const kakaopayUrls = {
             '황민구': 'https://qr.kakaopay.com/Ej9Ik0WyG',
             '정지희': 'https://qr.kakaopay.com/FIp8Ra2lC',
@@ -180,19 +378,80 @@
             '박서연': 'https://qr.kakaopay.com/FX8cFjPmp',
             '박성희': 'https://qr.kakaopay.com/FTLnTMuOI'
         };
+        const memberNames = ['구보람', '김혜빈', '박서연', '박성희', '정민경', '정지희', '황민구'];
 
-        // 송금 기능
-        function goToKakaopay(personName) {
-            const url = kakaopayUrls[personName];
-            
-            if (url) {
-                window.location.href = url;
-            } else {
-                alert(personName + '님의 송금 코드가 설정되지 않았습니다. 관리자에게 문의하세요.');
+        // --- 로컬 저장소 기능 ---
+        function getRecords() {
+            const records = localStorage.getItem('coffeeGameRecords');
+            return records ? JSON.parse(records) : [];
+        }
+
+        function saveRecords(records) {
+            localStorage.setItem('coffeeGameRecords', JSON.stringify(records));
+        }
+
+        // --- 초기화 및 탭 제어 기능 ---
+        function changeTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-buttons button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            document.getElementById(tabId + 'Content').classList.add('active');
+            document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1) + 'Button').classList.add('active');
+
+            if (tabId === 'stats') {
+                renderStats();
+            }
+            if (tabId === 'record') {
+                renderRecordsList();
             }
         }
 
-        // 더치페이 계산기 기능
+        function initializeRecordBuyer() {
+            const container = document.getElementById('recordBuyerCheckboxes');
+            const sortedMembers = [...memberNames].sort(); 
+
+            sortedMembers.forEach(name => {
+                const checkboxDiv = document.createElement('div');
+                checkboxDiv.style.marginRight = '10px';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'buyer-' + name;
+                checkbox.name = 'recordBuyer';
+                checkbox.value = name;
+                
+                const label = document.createElement('label');
+                label.htmlFor = 'buyer-' + name;
+                label.textContent = name;
+                label.style.marginLeft = '5px';
+
+                checkboxDiv.appendChild(checkbox);
+                checkboxDiv.appendChild(label);
+                container.appendChild(checkboxDiv);
+            });
+        }
+
+        window.onload = function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('recordDate').value = today;
+            initializeRecordBuyer();
+            changeTab('calc'); 
+        };
+
+        // --- 송금 및 계산기 기능 ---
+        function goToKakaopay(personName) {
+            const url = kakaopayUrls[personName];
+            if (url) {
+                window.location.href = url;
+            } else {
+                alert(personName + '님의 송금 코드가 설정되지 않았습니다.');
+            }
+        }
+
         function calculateSplit() {
             const totalAmountInput = document.getElementById('totalAmount');
             const numPeopleInput = document.getElementById('numPeople');
@@ -206,7 +465,6 @@
                 return;
             }
             
-            // 1. 100원 단위로 올림하여 총 금액 산정
             const totalAmount = Math.ceil(rawTotalAmount / 100) * 100;
             
             let roundingNote = "";
@@ -216,16 +474,9 @@
                  roundingNote = `<br><small>총 금액 ${totalAmount.toLocaleString()}원 기준 분배입니다.</small>`;
             }
 
-
-            // 2. 기본 인당 금액 (100원 단위로 내림)
             const basicAmount = Math.floor(totalAmount / numPeople / 100) * 100;
-            
-            // 3. 나머지 금액 계산
             const remainder = totalAmount - (basicAmount * numPeople);
-
-            // 4. 추가 금액(100원)을 받을 인원수 계산
-            const extraPeople = remainder / 100;
-
+            const extraPeople = remainder / 100; 
             const higherAmount = basicAmount + 100;
             const lowerAmount = basicAmount;
 
@@ -250,11 +501,198 @@
 
             resultDiv.innerHTML = resultText + roundingNote;
         }
-        
-        // 페이지 로드 시 초기 텍스트 설정
-        window.onload = function() {
-            document.getElementById('calculationResult').innerHTML = "결과를 보려면 '계산하기' 버튼을 눌러주세요.";
-        };
+
+        // --- 기록 저장 (로컬 전용) ---
+        function saveRecord() {
+            const type = document.getElementById('recordType').value;
+            const date = document.getElementById('recordDate').value;
+            const checkedBuyers = Array.from(document.querySelectorAll('input[name="recordBuyer"]:checked'))
+                                       .map(cb => cb.value);
+            const game = document.getElementById('recordGame').value.trim();
+
+            if (!date || checkedBuyers.length === 0 || !game) {
+                alert('날짜, 커피 구매자 (최소 1명), 무슨 게임은 필수 입력 항목입니다.');
+                return;
+            }
+
+            const newRecord = {
+                id: Date.now(), 
+                type: type,
+                date: date,
+                buyer: checkedBuyers, 
+                game: game
+            };
+
+            // 로컬 저장소에 저장
+            const records = getRecords();
+            records.push(newRecord);
+            saveRecords(records);
+            
+            alert(`✅ 기록이 로컬 저장소에 저장되었습니다!`);
+
+            // 입력 필드 초기화
+            document.getElementById('recordGame').value = ''; 
+            document.querySelectorAll('input[name="recordBuyer"]:checked').forEach(cb => cb.checked = false);
+            document.getElementById('recordType').value = '번외';
+
+            // 기록 목록 및 통계 업데이트
+            renderRecordsList();
+            renderStats();
+        }
+
+        // --- 기록 삭제 (로컬 저장소 기능) ---
+        function deleteRecord(id) {
+            if (!confirm('정말로 이 기록을 삭제하시겠습니까? (로컬 데이터만 삭제됩니다.)')) {
+                return;
+            }
+
+            let records = getRecords();
+            records = records.filter(record => record.id !== id);
+            saveRecords(records);
+
+            renderRecordsList();
+            if (document.getElementById('statsContent').classList.contains('active')) {
+                renderStats();
+            }
+        }
+
+        // --- 기록 목록 렌더링 (로컬 저장소 기능) ---
+        function renderRecordsList() {
+            const recordsListElement = document.getElementById('recordsList');
+            recordsListElement.innerHTML = '';
+            
+            const records = getRecords().reverse(); 
+
+            if (records.length === 0) {
+                recordsListElement.innerHTML = '<li>아직 기록된 내역이 없습니다.</li>';
+                return;
+            }
+
+            records.forEach(record => {
+                const listItem = document.createElement('li');
+                
+                const dateParts = record.date.split('-'); 
+                const dateDisplay = `${dateParts[1]}/${dateParts[2]}`; 
+                
+                const buyerDisplay = Array.isArray(record.buyer) ? record.buyer.join(', ') : record.buyer; 
+                
+                listItem.innerHTML = `
+                    <div>
+                        [<strong>${record.type}</strong>] ${dateDisplay} - **${buyerDisplay}** 당첨! <br>
+                        <small>${record.game}</small>
+                    </div>
+                    <button class="delete-button" onclick="deleteRecord(${record.id})">삭제</button>
+                `;
+                recordsListElement.appendChild(listItem);
+            });
+        }
+
+        // --- 통계 기능 (로컬 저장소 기능) ---
+        function getBuyerCounts(records) {
+            const buyerCounts = memberNames.reduce((acc, name) => {
+                acc[name] = 0; 
+                return acc;
+            }, {});
+            
+            records.forEach(record => {
+                if (Array.isArray(record.buyer)) {
+                    record.buyer.forEach(buyerName => {
+                        buyerCounts[buyerName] = (buyerCounts[buyerName] || 0) + 1;
+                    });
+                } else if (record.buyer) {
+                    buyerCounts[record.buyer] = (buyerCounts[record.buyer] || 0) + 1;
+                }
+            });
+            return buyerCounts;
+        }
+
+        function renderStats() {
+            const allRecords = getRecords();
+            const totalCount = allRecords.length;
+            document.getElementById('totalRecordsCount').textContent = totalCount;
+            
+            if (totalCount === 0) {
+                document.getElementById('typeStats').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
+                document.getElementById('buyerStatsAll').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
+                document.getElementById('buyerStatsRegular').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
+                document.getElementById('buyerStatsExtra').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
+                document.getElementById('latestRegularBuyer').innerHTML = '<span>최근 정규 게임 기록이 없습니다.</span>';
+                return;
+            }
+            
+            // --- 최근 정규 게임 구매자 찾기 ---
+            const regularRecords = allRecords.filter(r => r.type === '정규').sort((a, b) => new Date(b.date) - new Date(a.date));
+            const latestRegularBuyerDiv = document.getElementById('latestRegularBuyer');
+            
+            if (regularRecords.length > 0) {
+                const latestBuyer = Array.isArray(regularRecords[0].buyer) ? regularRecords[0].buyer.join(', ') : regularRecords[0].buyer;
+                const latestDate = regularRecords[0].date;
+                latestRegularBuyerDiv.innerHTML = `🌟 **최근 정규 게임 구매자:** <span style="color:#e74c3c;">${latestBuyer}</span> (${latestDate})`;
+            } else {
+                latestRegularBuyerDiv.innerHTML = '<span>최근 정규 게임 기록이 없습니다.</span>';
+            }
+
+
+            // 1. 게임 구분 통계 (정규/번외) - 막대 차트
+            const typeCounts = allRecords.reduce((acc, record) => {
+                acc[record.type] = (acc[record.type] || 0) + 1;
+                return acc;
+            }, {});
+            drawBarChart('typeStats', typeCounts, totalCount, 'regular', {'정규': 'regular', '번외': 'extra'});
+
+
+            // 2. 커피 구매자 통계 - 전체 기록 - 막대 차트
+            const buyerCountsAll = getBuyerCounts(allRecords);
+            drawBarChart('buyerStatsAll', buyerCountsAll, totalCount, 'buyer-all');
+            
+            // 3. 커피 구매자 통계 - 정규 게임 한정 - 막대 차트
+            const buyerCountsRegular = getBuyerCounts(regularRecords);
+            if (regularRecords.length > 0) {
+                 drawBarChart('buyerStatsRegular', buyerCountsRegular, regularRecords.length, 'buyer-regular');
+            } else {
+                 document.getElementById('buyerStatsRegular').innerHTML = '<p>정규 게임 기록이 없어 통계를 표시할 수 없습니다.</p>';
+            }
+
+            // 4. 커피 구매자 통계 - 번외 게임 한정 - 막대 차트
+            const extraRecords = allRecords.filter(r => r.type === '번외');
+            const buyerCountsExtra = getBuyerCounts(extraRecords);
+            if (extraRecords.length > 0) {
+                 drawBarChart('buyerStatsExtra', buyerCountsExtra, extraRecords.length, 'buyer-extra');
+            } else {
+                 document.getElementById('buyerStatsExtra').innerHTML = '<p>번외 게임 기록이 없어 통계를 표시할 수 없습니다.</p>';
+            }
+        }
+
+        // 막대 그래프를 그리는 범용 함수
+        function drawBarChart(elementId, dataCounts, totalCount, baseClass, colorMap = {}) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = ''; 
+
+            const sortedKeys = Object.keys(dataCounts).sort((a, b) => dataCounts[b] - dataCounts[a]);
+
+            const maxCount = Math.max(...Object.values(dataCounts), 1); 
+
+            sortedKeys.forEach(key => {
+                const count = dataCounts[key];
+                const percentage = count > 0 ? (count / maxCount) * 100 : 0;
+                const barColorClass = colorMap[key] || baseClass;
+
+                if (count === 0 && elementId.includes('buyerStats')) {
+                    return; 
+                }
+
+                const chartItem = document.createElement('div');
+                chartItem.innerHTML = `
+                    <p style="margin: 5px 0 0; font-size: 0.9em;">**${key}** (${count}회)</p>
+                    <div class="chart-bar-container">
+                        <div class="chart-bar ${barColorClass}" style="width: ${percentage}%;">
+                            ${count > 0 ? count + '회' : ''}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(chartItem);
+            });
+        }
 
     </script>
 
