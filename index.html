@@ -399,9 +399,14 @@
                 button.classList.remove('active');
             });
 
-            document.getElementById(tabId + 'Content').classList.add('active');
-            document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1) + 'Button').classList.add('active');
+            // 탭 버튼 활성화
+            const tabButton = document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1) + 'Button');
+            const tabContent = document.getElementById(tabId + 'Content');
+            
+            if (tabButton) tabButton.classList.add('active');
+            if (tabContent) tabContent.classList.add('active');
 
+            // 탭에 따라 필요한 함수 실행
             if (tabId === 'stats') {
                 renderStats();
             }
@@ -412,6 +417,8 @@
 
         function initializeRecordBuyer() {
             const container = document.getElementById('recordBuyerCheckboxes');
+            if (!container) return; // 컨테이너가 없으면 함수 종료 (오류 방지)
+            
             const sortedMembers = [...memberNames].sort(); 
 
             sortedMembers.forEach(name => {
@@ -435,12 +442,22 @@
             });
         }
 
-        window.onload = function() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('recordDate').value = today;
-            initializeRecordBuyer();
-            changeTab('calc'); 
-        };
+        // ⭐ HTML 문서 로드 후 실행 (안정성 강화) ⭐
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const recordDateInput = document.getElementById('recordDate');
+                if (recordDateInput) {
+                    const today = new Date().toISOString().split('T')[0];
+                    recordDateInput.value = today;
+                }
+                
+                initializeRecordBuyer();
+                changeTab('calc'); 
+            } catch (error) {
+                console.error("앱 초기화 중 오류 발생:", error);
+                // 오류 발생 시에도 앱이 완전히 멈추지 않도록 메시지만 출력
+            }
+        });
 
         // --- 송금 및 계산기 기능 ---
         function goToKakaopay(personName) {
@@ -559,6 +576,8 @@
         // --- 기록 목록 렌더링 (로컬 저장소 기능) ---
         function renderRecordsList() {
             const recordsListElement = document.getElementById('recordsList');
+            if (!recordsListElement) return; // 요소 없으면 종료
+
             recordsListElement.innerHTML = '';
             
             const records = getRecords().reverse(); 
@@ -609,14 +628,22 @@
         function renderStats() {
             const allRecords = getRecords();
             const totalCount = allRecords.length;
-            document.getElementById('totalRecordsCount').textContent = totalCount;
+            const totalRecordsCountElement = document.getElementById('totalRecordsCount');
+            if (totalRecordsCountElement) totalRecordsCountElement.textContent = totalCount;
             
             if (totalCount === 0) {
-                document.getElementById('typeStats').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
-                document.getElementById('buyerStatsAll').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
-                document.getElementById('buyerStatsRegular').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
-                document.getElementById('buyerStatsExtra').innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
-                document.getElementById('latestRegularBuyer').innerHTML = '<span>최근 정규 게임 기록이 없습니다.</span>';
+                // 통계 컨테이너 초기화
+                const clearStats = (id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
+                };
+                clearStats('typeStats');
+                clearStats('buyerStatsAll');
+                clearStats('buyerStatsRegular');
+                clearStats('buyerStatsExtra');
+                
+                const latestBuyerEl = document.getElementById('latestRegularBuyer');
+                if (latestBuyerEl) latestBuyerEl.innerHTML = '<span>최근 정규 게임 기록이 없습니다.</span>';
                 return;
             }
             
@@ -624,12 +651,14 @@
             const regularRecords = allRecords.filter(r => r.type === '정규').sort((a, b) => new Date(b.date) - new Date(a.date));
             const latestRegularBuyerDiv = document.getElementById('latestRegularBuyer');
             
-            if (regularRecords.length > 0) {
-                const latestBuyer = Array.isArray(regularRecords[0].buyer) ? regularRecords[0].buyer.join(', ') : regularRecords[0].buyer;
-                const latestDate = regularRecords[0].date;
-                latestRegularBuyerDiv.innerHTML = `🌟 **최근 정규 게임 구매자:** <span style="color:#e74c3c;">${latestBuyer}</span> (${latestDate})`;
-            } else {
-                latestRegularBuyerDiv.innerHTML = '<span>최근 정규 게임 기록이 없습니다.</span>';
+            if (latestRegularBuyerDiv) {
+                if (regularRecords.length > 0) {
+                    const latestBuyer = Array.isArray(regularRecords[0].buyer) ? regularRecords[0].buyer.join(', ') : regularRecords[0].buyer;
+                    const latestDate = regularRecords[0].date;
+                    latestRegularBuyerDiv.innerHTML = `🌟 **최근 정규 게임 구매자:** <span style="color:#e74c3c;">${latestBuyer}</span> (${latestDate})`;
+                } else {
+                    latestRegularBuyerDiv.innerHTML = '<span>최근 정규 게임 기록이 없습니다.</span>';
+                }
             }
 
 
@@ -650,7 +679,8 @@
             if (regularRecords.length > 0) {
                  drawBarChart('buyerStatsRegular', buyerCountsRegular, regularRecords.length, 'buyer-regular');
             } else {
-                 document.getElementById('buyerStatsRegular').innerHTML = '<p>정규 게임 기록이 없어 통계를 표시할 수 없습니다.</p>';
+                 const buyerStatsRegularEl = document.getElementById('buyerStatsRegular');
+                 if (buyerStatsRegularEl) buyerStatsRegularEl.innerHTML = '<p>정규 게임 기록이 없어 통계를 표시할 수 없습니다.</p>';
             }
 
             // 4. 커피 구매자 통계 - 번외 게임 한정 - 막대 차트
@@ -659,13 +689,16 @@
             if (extraRecords.length > 0) {
                  drawBarChart('buyerStatsExtra', buyerCountsExtra, extraRecords.length, 'buyer-extra');
             } else {
-                 document.getElementById('buyerStatsExtra').innerHTML = '<p>번외 게임 기록이 없어 통계를 표시할 수 없습니다.</p>';
+                 const buyerStatsExtraEl = document.getElementById('buyerStatsExtra');
+                 if (buyerStatsExtraEl) buyerStatsExtraEl.innerHTML = '<p>번외 게임 기록이 없어 통계를 표시할 수 없습니다.</p>';
             }
         }
 
         // 막대 그래프를 그리는 범용 함수
         function drawBarChart(elementId, dataCounts, totalCount, baseClass, colorMap = {}) {
             const container = document.getElementById(elementId);
+            if (!container) return; // 요소 없으면 종료
+            
             container.innerHTML = ''; 
 
             const sortedKeys = Object.keys(dataCounts).sort((a, b) => dataCounts[b] - dataCounts[a]);
@@ -693,8 +726,6 @@
                 container.appendChild(chartItem);
             });
         }
-
     </script>
-
 </body>
 </html>
