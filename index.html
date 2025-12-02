@@ -228,6 +228,22 @@
             display: flex;
             gap: 5px; 
         }
+        .edit-button {
+            width: 60px;
+            padding: 8px;
+            margin: 0;
+            font-size: 0.8em;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border: none;
+            color: white;
+            background-color: #3498db; /* 수정 버튼 색상 */
+        }
+        .edit-button:hover {
+            background-color: #2980b9;
+        }
         .delete-button {
             width: 60px;
             padding: 8px;
@@ -239,8 +255,6 @@
             transition: background-color 0.3s;
             border: none;
             color: white;
-        }
-        .delete-button {
             background-color: #e74c3c;
         }
         .delete-button:hover {
@@ -332,7 +346,7 @@
         
         <div id="recordContent" class="tab-content">
             <div class="section-container record-section">
-                <h3>✍️ 내기 기록하기</h3>
+                <h3>✍️ 내기 기록/수정하기</h3>
                 
                 <div class="input-group">
                     <label for="recordDate">1. 날짜</label>
@@ -360,7 +374,7 @@
             </div>
 
             <div class="section-container record-list-section">
-                <h3>🗑️ 기록 목록 및 삭제</h3>
+                <h3>📝 기록 목록 및 삭제/수정</h3>
                 <ul id="recordsList">
                 </ul>
             </div>
@@ -397,9 +411,9 @@
     </div>
 
     <script type="module">
-        // Firebase 모듈 임포트
+        // Firebase 모듈 임포트: update 추가!
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-        import { getDatabase, ref, onValue, push, remove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+        import { getDatabase, ref, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
         // --- 1. Firebase 설정 및 초기화 (고객님의 값) ---
         const firebaseConfig = {
@@ -419,6 +433,8 @@
         const recordsRef = ref(db, 'coffeeRecords'); 
 
         let recordsData = []; 
+        // ⭐ 수정 기능을 위한 전역 변수 추가: 수정 중인 기록의 Firebase ID를 저장합니다.
+        let editingRecordId = null; 
         
         // --- 데이터 정의 영역 ---
         const kakaopayUrls = {
@@ -435,15 +451,13 @@
         // ⭐ 새로운 정렬 함수: 날짜(내림차순) 우선, 타임스탬프(내림차순) 차선 ⭐
         function sortRecords(a, b) {
             // 1. Primary sort: Date (Descending - Newest Date first)
-            // '2025-12-02'가 '2025-12-01'보다 먼저 오도록
             if (a.date < b.date) return 1; 
             if (a.date > b.date) return -1; 
 
             // 2. Secondary sort (Tie-breaker): Timestamp (Descending - Newest Registration first)
             return b.timestamp - a.timestamp;
         }
-        // ⭐
-
+        
         // --- 전역 함수 정의 (window 객체에 바인딩) ---
         window.getRecords = function() {
             return recordsData;
@@ -451,26 +465,29 @@
 
         // 탭 전환 함수 (window 객체에 바인딩)
         window.openTab = function(tabName, elmnt) {
-            // 1. 모든 .tab-content 숨기기
             const tabContents = document.getElementsByClassName("tab-content");
             for (let i = 0; i < tabContents.length; i++) {
                 tabContents[i].classList.remove("active");
             }
 
-            // 2. 모든 .tab-button의 active 클래스 제거
             const tabButtons = document.getElementsByClassName("tab-button");
             for (let i = 0; i < tabButtons.length; i++) {
                 tabButtons[i].classList.remove("active");
             }
 
-            // 3. 현재 탭 콘텐츠 및 버튼 활성화
             const currentContent = document.getElementById(tabName);
             if (currentContent) {
                 currentContent.classList.add("active");
             }
-            elmnt.classList.add("active");
+            // elmnt가 버튼 요소가 아닐 수 있으므로 확인
+            if(elmnt && elmnt.classList) {
+                elmnt.classList.add("active");
+            } else if (elmnt) {
+                // 엘리먼트가 아닌 경우, 탭 이름을 기반으로 버튼을 찾아서 활성화
+                const button = document.querySelector(`.tab-button[data-tab-name="${tabName}"]`);
+                if(button) button.classList.add('active');
+            }
             
-            // 4. 통계 탭이 열릴 때 통계를 다시 렌더링
             if (tabName === 'statsContent') {
                 renderStats(); 
             }
@@ -486,11 +503,10 @@
                     recordsData = Object.keys(data).map(key => ({
                         ...data[key],
                         firebaseId: key 
-                    })).sort(sortRecords); // ⭐ 변경된 정렬 로직 적용 ⭐
+                    })).sort(sortRecords); 
                 }
                 
                 renderRecordsList(); 
-                // 통계 탭이 열려있는 경우에만 렌더링
                 if(document.getElementById('statsContent').classList.contains('active')) {
                     renderStats();
                 }
@@ -510,10 +526,8 @@
                 if (!participantCheckbox || !buyerCheckbox) return;
 
                 if (participantCheckbox.checked) {
-                    // 참여자로 선택된 경우: 구매자 선택 가능 (활성화)
                     buyerCheckbox.disabled = false;
                 } else {
-                    // 참여자로 선택되지 않은 경우: 구매자 선택 불가능 (비활성화 및 강제 체크 해제)
                     buyerCheckbox.checked = false; 
                     buyerCheckbox.disabled = true;
                 }
@@ -556,7 +570,6 @@
                 participantCheckbox.value = name;
                 participantCheckbox.checked = true; // ⭐ 기본값: 모두 체크
                 
-                // 이벤트 리스너 추가: 참여자 상태 변경 시 구매자 제어
                 participantCheckbox.addEventListener('change', updateBuyerCheckboxes); 
                 
                 let participantLabel = document.createElement('label');
@@ -568,10 +581,78 @@
                 participantContainer.appendChild(participantCheckboxDiv);
             });
             
-            // 초기 로드 시 구매자 체크박스 상태 업데이트 
             updateBuyerCheckboxes(); 
         }
+
+        // ⭐⭐ 새로운 함수: 수정 모드 초기화 및 UI 복구 ⭐⭐
+        window.resetRecordForm = function() {
+            // 1. 입력 필드 초기화
+            document.getElementById('recordGame').value = ''; 
+            document.querySelectorAll('input[name="recordBuyer"]').forEach(cb => cb.checked = false); // 구매자 체크 해제
+            document.querySelectorAll('input[name="recordParticipant"]').forEach(cb => cb.checked = true); // 참여자는 다시 모두 체크
+            updateBuyerCheckboxes(); 
+            
+            // 날짜를 오늘 날짜로 재설정
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('recordDate').value = today;
         
+            // 2. 수정 모드 초기화 (UI 원복)
+            editingRecordId = null;
+            document.getElementById('saveRecordButton').textContent = '기록 저장 (클라우드/Firebase)';
+            document.getElementById('saveRecordButton').style.backgroundColor = '#555'; // 원래 색상으로 복구
+        }
+        // ⭐⭐
+
+        // ⭐⭐ 새로운 함수: 수정할 기록 불러오기 ⭐⭐
+        window.startEdit = function(firebaseId) {
+            const record = recordsData.find(r => r.firebaseId === firebaseId);
+            if (!record) {
+                alert('⚠️ 수정할 기록을 찾을 수 없습니다.');
+                return;
+            }
+            
+            // 1. 전역 변수에 ID 저장 및 UI 전환
+            editingRecordId = firebaseId;
+            document.getElementById('saveRecordButton').textContent = '📝 기록 수정 완료';
+            document.getElementById('saveRecordButton').style.backgroundColor = '#2ecc71'; 
+            
+            // 2. 입력 필드에 데이터 바인딩
+            document.getElementById('recordDate').value = record.date;
+            document.getElementById('recordGame').value = record.game;
+
+            // 3. 참여자 및 구매자 체크박스 상태 설정
+            memberNames.forEach(name => {
+                const participantCheckbox = document.getElementById('participant-' + name);
+                const buyerCheckbox = document.getElementById('buyer-' + name);
+                
+                // 참여자 상태 설정
+                if (participantCheckbox) {
+                    const isParticipant = record.participants && (Array.isArray(record.participants) ? record.participants.includes(name) : record.participants === name);
+                    participantCheckbox.checked = isParticipant;
+                }
+
+                // 구매자 상태 설정
+                if (buyerCheckbox) {
+                    const isBuyer = record.buyer && (Array.isArray(record.buyer) ? record.buyer.includes(name) : record.buyer === name);
+                    buyerCheckbox.checked = isBuyer;
+                }
+            });
+            
+            // 4. 참여자 상태에 따라 구매자 체크박스 활성화/비활성화 업데이트
+            updateBuyerCheckboxes(); 
+
+            // 5. '기록하기' 탭으로 전환
+            const recordTabButton = document.querySelector('.tab-button[data-tab-name="recordContent"]');
+            if (recordTabButton) {
+                // openTab에 버튼 요소를 전달하여 활성화
+                window.openTab('recordContent', recordTabButton);
+            }
+            
+            alert(`✅ ${record.date} 기록을 수정 모드로 불러왔습니다. 내용을 수정하고 '기록 수정 완료'를 눌러주세요.`);
+        }
+        // ⭐⭐
+
+
         // HTML 문서 로드 후 실행 
         document.addEventListener('DOMContentLoaded', function() {
             try {
@@ -585,7 +666,6 @@
                 
                 listenForRecords(); 
 
-                // 탭 버튼에 이벤트 리스너 바인딩
                 const tabButtons = document.querySelectorAll('.tab-button');
                 tabButtons.forEach(button => {
                     button.addEventListener('click', function() {
@@ -662,12 +742,11 @@
             resultDiv.innerHTML = resultText + roundingNote;
         }
 
-        // --- 기록 저장 기능 (V9 push 사용) ---
+        // --- 기록 저장/수정 기능 (saveRecord 변경) ---
         window.saveRecord = function() {
             const date = document.getElementById('recordDate').value;
             const checkedBuyers = Array.from(document.querySelectorAll('input[name="recordBuyer"]:checked'))
                                        .map(cb => cb.value);
-            // Participants
             const selectedParticipants = Array.from(document.querySelectorAll('input[name="recordParticipant"]:checked'))
                                        .map(cb => cb.value);
             const game = document.getElementById('recordGame').value.trim();
@@ -677,35 +756,49 @@
                 return;
             }
             
-            // 최종 유효성 검사: 구매자가 참여자에 포함되는지 확인
             const invalidBuyers = checkedBuyers.filter(buyer => !selectedParticipants.includes(buyer));
             if (invalidBuyers.length > 0) {
                  alert(`⚠️ 오류: [${invalidBuyers.join(', ')}] 님은 게임 참여자가 아닙니다. 참여자로 선택된 사람만 구매자로 선택할 수 있습니다.`);
                  return;
             }
 
-            const newRecord = {
+            const recordDataToSave = {
                 date: date,
                 buyer: checkedBuyers, 
                 participants: selectedParticipants, 
                 game: game,
-                timestamp: Date.now() 
             };
-
-            // Firebase에 저장
-            push(recordsRef, newRecord) 
-                .then(() => {
-                    alert(`✅ 기록이 클라우드(Firebase)에 저장되었습니다! 모든 기기에서 동기화됩니다.`);
-                    // 입력 필드 초기화
-                    document.getElementById('recordGame').value = ''; 
-                    document.querySelectorAll('input[name="recordBuyer"]:checked').forEach(cb => cb.checked = false);
-                    document.querySelectorAll('input[name="recordParticipant"]').forEach(cb => cb.checked = true); // 참여자는 다시 모두 체크
-                    updateBuyerCheckboxes(); // 초기화 후 구매자 상태도 업데이트
-                })
-                .catch(error => {
-                    alert(`⚠️ 기록 저장 실패: ${error.message}`);
-                    console.error("Firebase 저장 오류:", error);
-                });
+            
+            if (editingRecordId) {
+                // ⭐ 수정 모드: update 함수 사용
+                const recordToUpdateRef = ref(db, 'coffeeRecords/' + editingRecordId);
+                // timestamp는 유지 (recordDataToSave에 포함되지 않음)
+                update(recordToUpdateRef, recordDataToSave)
+                    .then(() => {
+                        alert(`✅ 기록이 클라우드에서 수정되었습니다!`);
+                        resetRecordForm(); // 폼 초기화 및 수정 모드 해제
+                    })
+                    .catch(error => {
+                        alert(`⚠️ 기록 수정 실패: ${error.message}`);
+                        console.error("Firebase 수정 오류:", error);
+                    });
+            } else {
+                // ⭐ 추가 모드: push 함수 사용
+                const newRecordWithTimestamp = {
+                    ...recordDataToSave,
+                    timestamp: Date.now() // 신규 기록에만 timestamp 추가
+                };
+                
+                push(recordsRef, newRecordWithTimestamp) 
+                    .then(() => {
+                        alert(`✅ 기록이 클라우드(Firebase)에 저장되었습니다!`);
+                        resetRecordForm(); // 폼 초기화
+                    })
+                    .catch(error => {
+                        alert(`⚠️ 기록 저장 실패: ${error.message}`);
+                        console.error("Firebase 저장 오류:", error);
+                    });
+            }
         }
 
         // --- 기록 삭제 기능 (V9 remove 사용) ---
@@ -725,14 +818,14 @@
                 });
         }
 
-        // --- 기록 목록 렌더링 (수정 버튼 제거) ---
+        // --- 기록 목록 렌더링 (수정 버튼 추가) ---
         function renderRecordsList() {
             const recordsListElement = document.getElementById('recordsList');
             if (!recordsListElement) return; 
 
             recordsListElement.innerHTML = '';
             
-            const records = getRecords(); // 이미 정렬된 recordsData를 가져옴
+            const records = getRecords(); 
 
             if (records.length === 0) {
                 recordsListElement.innerHTML = '<li>아직 기록된 내역이 없습니다.</li>';
@@ -760,6 +853,7 @@
                         ${participantInfo}
                     </div>
                     <div class="record-actions">
+                        <button class="edit-button" onclick="startEdit('${record.firebaseId}')">수정</button>
                         <button class="delete-button" onclick="deleteRecord('${record.firebaseId}')">삭제</button>
                     </div>
                 `; 
@@ -785,7 +879,7 @@
         }
 
         function renderStats() {
-            const allRecords = getRecords(); // 이미 날짜 기준으로 정렬된 데이터
+            const allRecords = getRecords(); 
             const totalCount = allRecords.length;
             const totalRecordsCountElement = document.getElementById('totalRecordsCount');
             if (totalRecordsCountElement) totalRecordsCountElement.textContent = totalCount;
@@ -806,7 +900,7 @@
             }
             
             // ⭐⭐⭐ 연속 구매자 확인 로직 (날짜 기준 정렬된 데이터 사용) ⭐⭐⭐
-            const allSortedRecords = allRecords; // 이미 sortRecords 함수로 정렬됨 (날짜 내림차순)
+            const allSortedRecords = allRecords; 
             const consecutiveBuyers = new Set();
             
             memberNames.forEach(member => {
@@ -817,20 +911,17 @@
                 
                 // 참여 기록이 2개 이상일 때만 검사
                 if (memberParticipantRecords.length >= 2) {
-                    // 가장 최근의 참여 게임 2개만 추출 (날짜 기준 최신 2개)
                     const recentTwoParticipations = memberParticipantRecords.slice(0, 2); 
                     
-                    const latestRecord = recentTwoParticipations[0]; // 가장 최근 참여 게임
-                    const previousRecord = recentTwoParticipations[1]; // 그 이전 참여 게임
+                    const latestRecord = recentTwoParticipations[0]; 
+                    const previousRecord = recentTwoParticipations[1]; 
                     
-                    // 각 게임에서 이 멤버가 '구매자(당첨자)'인지 확인
                     const isLatestBuyer = latestRecord.buyer && 
                         (Array.isArray(latestRecord.buyer) ? latestRecord.buyer.includes(member) : latestRecord.buyer === member);
                         
                     const isPreviousBuyer = previousRecord.buyer && 
                         (Array.isArray(previousRecord.buyer) ? previousRecord.buyer.includes(member) : previousRecord.buyer === member);
                     
-                    // 두 게임 모두에서 구매자(당첨자)인 경우 연속 당첨으로 간주
                     if (isLatestBuyer && isPreviousBuyer) {
                         consecutiveBuyers.add(member);
                     }
