@@ -863,75 +863,55 @@
             });
         }
         
-        // --- 통계 기능 ---
-        function getBuyerCounts(records) {
-            const buyerCounts = memberNames.reduce((acc, name) => {
-                acc[name] = 0; 
-                return acc;
-            }, {});
-            
-            records.forEach(record => {
-                const buyers = Array.isArray(record.buyer) ? record.buyer : [record.buyer].filter(Boolean);
-                
-                buyers.forEach(buyerName => {
-                    buyerCounts[buyerName] = (buyerCounts[buyerName] || 0) + 1;
-                });
-            });
-            return buyerCounts;
-        }
-
+        // --- 통계 기능 (참여/당첨/확률 통합 버전) ---
         function renderStats() {
             const allRecords = getRecords(); 
-            const totalCount = allRecords.length;
-            const totalRecordsCountElement = document.getElementById('totalRecordsCount');
-            if (totalRecordsCountElement) totalRecordsCountElement.textContent = totalCount;
-            
+            const container = document.getElementById('buyerStatsAll');
             const latestRegularBuyerDiv = document.getElementById('latestRegularBuyer');
+            const totalRecordsCountElement = document.getElementById('totalRecordsCount');
             
+            const totalCount = allRecords.length;
+            if (totalRecordsCountElement) totalRecordsCountElement.textContent = totalCount;
+
+            // 기록이 없을 때 처리
             if (totalCount === 0) {
-                const clearStats = (id) => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
-                };
-                clearStats('buyerStatsAll');
+                if (container) container.innerHTML = '<p>기록이 없어 통계를 표시할 수 없습니다.</p>';
                 document.getElementById('buyerStatsRegular').innerHTML = '';
                 document.getElementById('buyerStatsExtra').innerHTML = '';
-                
                 if (latestRegularBuyerDiv) latestRegularBuyerDiv.innerHTML = '<span>기록이 없습니다.</span>';
                 return;
             }
-            
-            // ⭐⭐⭐ 연속 구매자 확인 로직 (날짜 기준 정렬된 데이터 사용) ⭐⭐⭐
-            const allSortedRecords = allRecords; 
+
+            // 1. 데이터 집계 (참여 횟수와 당첨 횟수를 동시에 계산)
+            const stats = memberNames.reduce((acc, name) => {
+                acc[name] = { wins: 0, participations: 0 };
+                return acc;
+            }, {});
+
+            allRecords.forEach(record => {
+                const buyers = Array.isArray(record.buyer) ? record.buyer : [record.buyer].filter(Boolean);
+                const participants = Array.isArray(record.participants) ? record.participants : [record.participants].filter(Boolean);
+
+                buyers.forEach(name => { if(stats[name]) stats[name].wins++; });
+                participants.forEach(name => { if(stats[name]) stats[name].participations++; });
+            });
+
+            // 2. ⭐ 연속 구매자 확인 로직 (기존 로직 유지)
             const consecutiveBuyers = new Set();
-            
             memberNames.forEach(member => {
-                // 1. 해당 멤버가 '참여자'로 포함된 모든 기록을 날짜순(최신순)으로 추출
-                const memberParticipantRecords = allSortedRecords.filter(r => 
+                const memberParticipantRecords = allRecords.filter(r => 
                     r.participants && (Array.isArray(r.participants) ? r.participants.includes(member) : r.participants === member)
                 );
-                
-                // 참여 기록이 2개 이상일 때만 검사
                 if (memberParticipantRecords.length >= 2) {
-                    const recentTwoParticipations = memberParticipantRecords.slice(0, 2); 
-                    
-                    const latestRecord = recentTwoParticipations[0]; 
-                    const previousRecord = recentTwoParticipations[1]; 
-                    
-                    const isLatestBuyer = latestRecord.buyer && 
-                        (Array.isArray(latestRecord.buyer) ? latestRecord.buyer.includes(member) : latestRecord.buyer === member);
-                        
-                    const isPreviousBuyer = previousRecord.buyer && 
-                        (Array.isArray(previousRecord.buyer) ? previousRecord.buyer.includes(member) : previousRecord.buyer === member);
-                    
-                    if (isLatestBuyer && isPreviousBuyer) {
-                        consecutiveBuyers.add(member);
-                    }
+                    const recentTwo = memberParticipantRecords.slice(0, 2); 
+                    const isLatestBuyer = recentTwo[0].buyer && (Array.isArray(recentTwo[0].buyer) ? recentTwo[0].buyer.includes(member) : recentTwo[0].buyer === member);
+                    const isPreviousBuyer = recentTwo[1].buyer && (Array.isArray(recentTwo[1].buyer) ? recentTwo[1].buyer.includes(member) : recentTwo[1].buyer === member);
+                    if (isLatestBuyer && isPreviousBuyer) consecutiveBuyers.add(member);
                 }
             });
 
+            // 연속 구매자 경고 메시지 출력
             const consecutiveBuyerList = Array.from(consecutiveBuyers).join(', ');
-
             if (latestRegularBuyerDiv) {
                 if (consecutiveBuyerList.length > 0) {
                     latestRegularBuyerDiv.innerHTML = `
@@ -942,47 +922,32 @@
                     latestRegularBuyerDiv.innerHTML = '✅ **참여한 가장 최근 2개의 게임(날짜 기준)에서 연속으로 걸린 사람이 없습니다.**';
                 }
             }
-            // ⭐⭐⭐ 연속 구매자 확인 로직 끝 ⭐⭐⭐
 
+            // 3. ⭐ 통계 차트 출력 (요청하신 형식 적용: (참여, 당첨) [확률])
+            const maxWins = Math.max(...Object.values(stats).map(s => s.wins), 1);
+            container.innerHTML = Object.entries(stats)
+                .filter(([name, data]) => data.participations > 0) // 참여한 적 있는 사람만 표시
+                .sort((a, b) => b[1].wins - a[1].wins) // 당첨 많은 순 정렬
+                .map(([name, data]) => {
+                    const winRate = ((data.wins / data.participations) * 100).toFixed(0);
+                    const barWidth = (data.wins / maxWins) * 100;
 
-            // ⭐⭐⭐ 통계 차트 단순화: 전체 구매자 통계만 사용 ⭐⭐⭐
-            const buyerCountsAll = getBuyerCounts(allRecords);
-            drawBarChart('buyerStatsAll', buyerCountsAll, totalCount, 'buyer-all');
-            
-            document.getElementById('buyerStatsRegular').innerHTML = ''; 
-            document.getElementById('buyerStatsExtra').innerHTML = ''; 
-        }
-
-        function drawBarChart(elementId, dataCounts, totalCount, baseClass, colorMap = {}) {
-            const container = document.getElementById(elementId);
-            if (!container) return; 
-            
-            container.innerHTML = ''; 
-
-            const sortedKeys = Object.keys(dataCounts).sort((a, b) => dataCounts[b] - dataCounts[a]);
-
-            const maxCount = Math.max(...Object.values(dataCounts), 1); 
-
-            sortedKeys.forEach(key => {
-                const count = dataCounts[key];
-                const percentage = count > 0 ? (count / maxCount) * 100 : 0;
-                const barColorClass = colorMap[key] || baseClass;
-
-                if (count === 0 && elementId.includes('buyerStats')) {
-                    return; 
-                }
-
-                const chartItem = document.createElement('div');
-                chartItem.innerHTML = `
-                    <p style="margin: 5px 0 0; font-size: 0.9em;">**${key}** (${count}회)</p>
-                    <div class="chart-bar-container">
-                        <div class="chart-bar ${barColorClass}" style="width: ${percentage}%;">
-                            ${count > 0 ? count + '회' : ''}
+                    return `
+                        <div style="margin: 15px 0 5px;">
+                            <p style="margin: 0; font-size: 0.95em;">
+                                <strong>${name}</strong> (${data.participations}회 참여, ${data.wins}회 당첨) [${winRate}%]
+                            </p>
+                            <div class="chart-bar-container">
+                                <div class="chart-bar buyer-all" style="width: ${barWidth}%;">
+                                    ${data.wins > 0 ? data.wins + '회' : ''}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                `;
-                container.appendChild(chartItem);
-            });
+                    `;
+                }).join('');
+
+            document.getElementById('buyerStatsRegular').innerHTML = ''; 
+            document.getElementById('buyerStatsExtra').innerHTML = '';
         }
         
     </script>
